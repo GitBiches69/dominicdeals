@@ -3,6 +3,7 @@ services:
     name: dominic-deals
     runtime: node
     plan: free
+    rootDir: you-know-about-the-bestbuy-deal
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/status
