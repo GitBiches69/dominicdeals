@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: dominic-deals
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BESTBUY_API_KEY
+        sync: false

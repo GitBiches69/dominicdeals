@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#f7d117">
+    <title>Dominic Deals</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="/icon.svg" type="image/svg+xml">
+    <link rel="stylesheet" href="/styles.css">
+    <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
+    <script src="/app.js" defer></script>
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Best Buy radar</p>
+          <h1>Dominic Deals</h1>
+        </div>
+        <span class="status-pill" id="sourcePill">Checking</span>
+      </header>
+
+      <main>
+        <section class="control-band" aria-label="Deal controls">
+          <div class="search-row">
+            <label class="search-field">
+              <i data-lucide="search"></i>
+              <input id="searchInput" type="search" placeholder="Search anything" autocomplete="off">
+            </label>
+            <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh deals">
+              <i data-lucide="refresh-cw"></i>
+            </button>
+          </div>
+
+          <div class="category-scroll" id="categoryButtons" aria-label="Categories">
+            <button class="chip active" data-category="all" type="button">All</button>
+            <button class="chip" data-category="laptops" type="button">Laptops</button>
+            <button class="chip" data-category="tvs" type="button">TVs</button>
+            <button class="chip" data-category="headphones" type="button">Audio</button>
+            <button class="chip" data-category="gaming" type="button">Gaming</button>
+            <button class="chip" data-category="cameras" type="button">Cameras</button>
+            <button class="chip" data-category="appliances" type="button">Home</button>
+          </div>
+
+          <div class="filters">
+            <label class="filter-block">
+              <span>Min deal <strong id="discountValue">15%</strong></span>
+              <input id="discountSlider" type="range" min="0" max="60" value="15" step="5">
+            </label>
+
+            <label class="filter-block">
+              <span>Max price</span>
+              <input id="maxPriceInput" type="number" min="0" step="25" placeholder="Any">
+            </label>
+
+            <label class="switch-row">
+              <input id="openBoxToggle" type="checkbox">
+              <span class="switch-track"></span>
+              <span>Open-box</span>
+            </label>
+
+            <label class="filter-block">
+              <span>Sort</span>
+              <select id="sortSelect">
+                <option value="percentSavings.dsc">Best %</option>
+                <option value="dollarSavings.dsc">Biggest $</option>
+                <option value="salePrice.asc">Lowest $</option>
+              </select>
+            </label>
+          </div>
+
+          <button class="primary-button" id="findButton" type="button">
+            <i data-lucide="zap"></i>
+            Find Deals
+          </button>
+        </section>
+
+        <section class="stats-band" aria-label="Deal summary">
+          <div>
+            <span id="dealCount">0</span>
+            <small>deals</small>
+          </div>
+          <div>
+            <span id="avgSavings">0%</span>
+            <small>avg off</small>
+          </div>
+          <div>
+            <span id="lastUpdated">--</span>
+            <small>updated</small>
+          </div>
+        </section>
+
+        <nav class="tabs" aria-label="Deal views">
+          <button class="tab active" data-view="deals" type="button">Deals</button>
+          <button class="tab" data-view="saved" type="button">Saved</button>
+        </nav>
+
+        <section class="message hidden" id="messageBox" role="status"></section>
+        <section class="deal-list" id="dealList" aria-live="polite"></section>
+      </main>
+    </div>
+  </body>
+</html>
