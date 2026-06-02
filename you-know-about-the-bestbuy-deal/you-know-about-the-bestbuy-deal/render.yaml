@@ -1,0 +1,28 @@
+services:
+  - type: web
+    name: dominic-deals
+    runtime: node
+    plan: free
+    rootDir: you-know-about-the-bestbuy-deal
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/status
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: BESTBUY_API_KEY
+        sync: false
+      - key: AUTO_PENNY_SCAN
+        value: "true"
+      - key: PENNY_SCAN_MINUTES
+        value: "5"
+      - key: RESEND_API_KEY
+        sync: false
+      - key: NOTIFY_FROM_EMAIL
+        sync: false
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_FROM_NUMBER
+        sync: false
