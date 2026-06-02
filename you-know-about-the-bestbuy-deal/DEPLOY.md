@@ -6,6 +6,8 @@ This app needs a real backend so the Best Buy API key stays private. Render is t
 
 Create a private GitHub repo and upload this folder. Do not upload `.env`; it is ignored by `.gitignore`.
 
+If GitHub shows the app files inside a top-level folder named `you-know-about-the-bestbuy-deal`, keep `rootDir: you-know-about-the-bestbuy-deal` in `render.yaml`. If GitHub shows `package.json` directly on the repo's first page, remove the `rootDir` line.
+
 ## 2. Create the Render service
 
 1. Go to https://dashboard.render.com/
@@ -21,6 +23,30 @@ Create a private GitHub repo and upload this folder. Do not upload `.env`; it is
 ```text
 BESTBUY_API_KEY=your_key_here
 ```
+
+Optional V3 notification variables:
+
+```text
+RESEND_API_KEY=your_resend_key
+NOTIFY_FROM_EMAIL=alerts@dominicdeals.online
+
+TWILIO_ACCOUNT_SID=your_twilio_sid
+TWILIO_AUTH_TOKEN=your_twilio_token
+TWILIO_FROM_NUMBER=+15551234567
+```
+
+Without these, accounts and alert history still work, but notifications are reported as not configured.
+
+Penny Watch background scanning is controlled by:
+
+```text
+AUTO_PENNY_SCAN=true
+PENNY_SCAN_MINUTES=5
+```
+
+The background scan only sends real alerts when `BESTBUY_API_KEY` exists and at least one account has notification settings saved.
+
+V3 stores accounts, phone numbers, and alert history in the app's local `data/` folder. On Render's free web service filesystem, that data may reset on redeploy/restart. For permanent hosted accounts, add a Render disk or move the data to a database before sharing it widely.
 
 ## 3. Add the custom domain
 

@@ -1,9 +1,9 @@
-const CACHE_NAME = "dominic-deals-v3";
+const CACHE_NAME = "dominic-deals-v7";
 const ASSETS = [
   "/",
   "/index.html",
-  "/styles.css?v=3",
-  "/app.js?v=2",
+  "/styles.css?v=7",
+  "/app.js?v=5",
   "/manifest.json",
   "/icon.svg"
 ];
