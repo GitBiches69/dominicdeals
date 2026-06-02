@@ -7,9 +7,9 @@
     <title>Dominic Deals</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/styles.css?v=3">
+    <link rel="stylesheet" href="/styles.css?v=5">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-    <script src="/app.js?v=2" defer></script>
+    <script src="/app.js?v=5" defer></script>
   </head>
   <body>
     <canvas class="deal-background" id="dealBackground" aria-hidden="true"></canvas>
@@ -30,115 +30,266 @@
         </div>
       </header>
 
-      <main>
-        <section class="settings-tray hidden" id="settingsPanel" aria-label="Settings">
-          <div class="setting-group">
-            <span class="setting-label">Theme</span>
-            <div class="segmented" role="group" aria-label="Theme">
-              <button class="segment" data-theme-option="system" type="button">System</button>
-              <button class="segment" data-theme-option="light" type="button">Light</button>
-              <button class="segment" data-theme-option="dark" type="button">Dark</button>
+      <main class="desktop-grid">
+        <section class="main-column">
+          <section class="hero-panel">
+            <div>
+              <p class="eyebrow">Version 3</p>
+              <h2>Penny Watch is armed.</h2>
+              <p id="heroSubcopy">Create an account, add your phone, and scan for absurd markdowns.</p>
             </div>
-          </div>
-
-          <div class="setting-group">
-            <span class="setting-label">Accent</span>
-            <div class="segmented" role="group" aria-label="Accent">
-              <button class="swatch electric" data-accent-option="electric" type="button" aria-label="Electric accent"></button>
-              <button class="swatch pulse" data-accent-option="pulse" type="button" aria-label="Pulse accent"></button>
-              <button class="swatch signal" data-accent-option="signal" type="button" aria-label="Signal accent"></button>
-            </div>
-          </div>
-
-          <label class="switch-row setting-switch">
-            <input id="motionToggle" type="checkbox">
-            <span class="switch-track"></span>
-            <span>Motion</span>
-          </label>
-
-          <label class="switch-row setting-switch">
-            <input id="denseToggle" type="checkbox">
-            <span class="switch-track"></span>
-            <span>Compact</span>
-          </label>
-        </section>
-
-        <section class="control-band" aria-label="Deal controls">
-          <div class="search-row">
-            <label class="search-field">
-              <i data-lucide="search"></i>
-              <input id="searchInput" type="search" placeholder="Search anything" autocomplete="off">
-            </label>
-            <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh deals">
-              <i data-lucide="refresh-cw"></i>
+            <button class="primary-button hero-scan" id="heroPennyScanButton" type="button">
+              <i data-lucide="radar"></i>
+              Scan Penny Deals
             </button>
-          </div>
+          </section>
 
-          <div class="category-scroll" id="categoryButtons" aria-label="Categories">
-            <button class="chip active" data-category="all" type="button">All</button>
-            <button class="chip" data-category="laptops" type="button">Laptops</button>
-            <button class="chip" data-category="tvs" type="button">TVs</button>
-            <button class="chip" data-category="headphones" type="button">Audio</button>
-            <button class="chip" data-category="gaming" type="button">Gaming</button>
-            <button class="chip" data-category="cameras" type="button">Cameras</button>
-            <button class="chip" data-category="appliances" type="button">Home</button>
-          </div>
+          <section class="control-band" aria-label="Deal controls">
+            <div class="search-row">
+              <label class="search-field">
+                <i data-lucide="search"></i>
+                <input id="searchInput" type="search" placeholder="Search anything" autocomplete="off">
+              </label>
+              <button class="icon-button" id="refreshButton" type="button" aria-label="Refresh deals">
+                <i data-lucide="refresh-cw"></i>
+              </button>
+            </div>
 
-          <div class="filters">
-            <label class="filter-block">
-              <span>Min deal <strong id="discountValue">15%</strong></span>
-              <input id="discountSlider" type="range" min="0" max="60" value="15" step="5">
-            </label>
+            <div class="category-scroll" id="categoryButtons" aria-label="Categories">
+              <button class="chip active" data-category="all" type="button">All</button>
+              <button class="chip" data-category="laptops" type="button">Laptops</button>
+              <button class="chip" data-category="tvs" type="button">TVs</button>
+              <button class="chip" data-category="headphones" type="button">Audio</button>
+              <button class="chip" data-category="gaming" type="button">Gaming</button>
+              <button class="chip" data-category="cameras" type="button">Cameras</button>
+              <button class="chip" data-category="appliances" type="button">Home</button>
+            </div>
 
-            <label class="filter-block">
-              <span>Max price</span>
-              <input id="maxPriceInput" type="number" min="0" step="25" placeholder="Any">
-            </label>
+            <div class="filters">
+              <label class="filter-block">
+                <span>Min deal <strong id="discountValue">15%</strong></span>
+                <input id="discountSlider" type="range" min="0" max="60" value="15" step="5">
+              </label>
 
-            <label class="switch-row">
-              <input id="openBoxToggle" type="checkbox">
-              <span class="switch-track"></span>
-              <span>Open-box</span>
-            </label>
+              <label class="filter-block">
+                <span>Max price</span>
+                <input id="maxPriceInput" type="number" min="0" step="25" placeholder="Any">
+              </label>
 
-            <label class="filter-block">
-              <span>Sort</span>
-              <select id="sortSelect">
-                <option value="percentSavings.dsc">Best %</option>
-                <option value="dollarSavings.dsc">Biggest $</option>
-                <option value="salePrice.asc">Lowest $</option>
-              </select>
-            </label>
-          </div>
+              <label class="switch-row">
+                <input id="openBoxToggle" type="checkbox">
+                <span class="switch-track"></span>
+                <span>Open-box</span>
+              </label>
 
-          <button class="primary-button" id="findButton" type="button">
-            <i data-lucide="zap"></i>
-            Find Deals
-          </button>
+              <label class="filter-block">
+                <span>Sort</span>
+                <select id="sortSelect">
+                  <option value="percentSavings.dsc">Best %</option>
+                  <option value="dollarSavings.dsc">Biggest $</option>
+                  <option value="salePrice.asc">Lowest $</option>
+                </select>
+              </label>
+            </div>
+
+            <button class="primary-button" id="findButton" type="button">
+              <i data-lucide="zap"></i>
+              Find Deals
+            </button>
+          </section>
+
+          <section class="stats-band" aria-label="Deal summary">
+            <div>
+              <span id="dealCount">0</span>
+              <small>deals</small>
+            </div>
+            <div>
+              <span id="avgSavings">0%</span>
+              <small>avg off</small>
+            </div>
+            <div>
+              <span id="lastUpdated">--</span>
+              <small>updated</small>
+            </div>
+            <div class="desktop-stat">
+              <span id="pennyCount">0</span>
+              <small>penny hits</small>
+            </div>
+          </section>
+
+          <nav class="tabs" aria-label="Deal views">
+            <button class="tab active" data-view="deals" type="button">Deals</button>
+            <button class="tab" data-view="saved" type="button">Saved</button>
+            <button class="tab" data-view="alerts" type="button">Alerts</button>
+          </nav>
+
+          <section class="message hidden" id="messageBox" role="status"></section>
+          <section class="deal-list" id="dealList" aria-live="polite"></section>
         </section>
 
-        <section class="stats-band" aria-label="Deal summary">
-          <div>
-            <span id="dealCount">0</span>
-            <small>deals</small>
-          </div>
-          <div>
-            <span id="avgSavings">0%</span>
-            <small>avg off</small>
-          </div>
-          <div>
-            <span id="lastUpdated">--</span>
-            <small>updated</small>
-          </div>
-        </section>
+        <aside class="side-column" aria-label="Command center">
+          <section class="side-shell">
+            <nav class="side-menu" aria-label="Command center sections">
+              <button class="side-menu-button active" data-side-panel="tracker" type="button">
+                <i data-lucide="radar"></i>
+                <span>Tracker</span>
+              </button>
+              <button class="side-menu-button" data-side-panel="account" type="button">
+                <i data-lucide="user-round"></i>
+                <span>Account</span>
+              </button>
+              <button class="side-menu-button" data-side-panel="alerts" type="button">
+                <i data-lucide="bell-ring"></i>
+                <span>Alerts</span>
+              </button>
+              <button class="side-menu-button" data-side-panel="style" type="button">
+                <i data-lucide="sparkles"></i>
+                <span>Style</span>
+              </button>
+            </nav>
 
-        <nav class="tabs" aria-label="Deal views">
-          <button class="tab active" data-view="deals" type="button">Deals</button>
-          <button class="tab" data-view="saved" type="button">Saved</button>
-        </nav>
+            <div class="side-panel-stack">
+              <section class="side-card side-panel active" data-side-panel-content="tracker">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">Penny Watch</p>
+                    <h2>Instant markdown alerts</h2>
+                  </div>
+                  <span class="mini-pill" id="notifyStatus">Local</span>
+                </div>
 
-        <section class="message hidden" id="messageBox" role="status"></section>
-        <section class="deal-list" id="dealList" aria-live="polite"></section>
+                <div class="watch-grid">
+                  <label class="filter-block">
+                    <span>Max penny price</span>
+                    <input id="pennyThresholdInput" type="number" min="0.01" max="100" step="0.01" value="5">
+                  </label>
+                  <label class="filter-block">
+                    <span>Min drop %</span>
+                    <input id="pennyPercentInput" type="number" min="1" max="99" step="1" value="80">
+                  </label>
+                  <label class="switch-row">
+                    <input id="notifyEmailToggle" type="checkbox">
+                    <span class="switch-track"></span>
+                    <span>Email</span>
+                  </label>
+                  <label class="switch-row">
+                    <input id="notifySmsToggle" type="checkbox">
+                    <span class="switch-track"></span>
+                    <span>SMS</span>
+                  </label>
+                  <label class="switch-row wide-switch">
+                    <input id="soldOutToggle" type="checkbox">
+                    <span class="switch-track"></span>
+                    <span>Sold-out drops</span>
+                  </label>
+                </div>
+
+                <div class="button-row">
+                  <button class="primary-button mini" id="savePrefsButton" type="button">Save</button>
+                  <button class="ghost-button" id="testNotificationButton" type="button">Test</button>
+                </div>
+                <button class="danger-button" id="pennyScanButton" type="button">
+                  <i data-lucide="siren"></i>
+                  Scan + Notify
+                </button>
+              </section>
+
+              <section class="side-card side-panel" data-side-panel-content="account">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">Account</p>
+                    <h2 id="accountTitle">Sign in</h2>
+                  </div>
+                  <button class="ghost-button hidden" id="logoutButton" type="button">Log out</button>
+                </div>
+
+                <div class="auth-form" id="authForm">
+                  <label>
+                    <span>Name</span>
+                    <input id="authName" type="text" autocomplete="name" placeholder="Dominic">
+                  </label>
+                  <label>
+                    <span>Email</span>
+                    <input id="authEmail" type="email" autocomplete="email" placeholder="you@dominicdeals.online">
+                  </label>
+                  <label>
+                    <span>Phone</span>
+                    <input id="authPhone" type="tel" autocomplete="tel" placeholder="+1 555 123 4567">
+                  </label>
+                  <label>
+                    <span>Password</span>
+                    <input id="authPassword" type="password" autocomplete="current-password" placeholder="8+ characters">
+                  </label>
+                  <div class="button-row">
+                    <button class="primary-button mini" id="registerButton" type="button">Create</button>
+                    <button class="ghost-button" id="loginButton" type="button">Sign in</button>
+                  </div>
+                </div>
+
+                <div class="account-summary hidden" id="accountSummary">
+                  <strong id="accountName">Signed in</strong>
+                  <span id="accountEmail">--</span>
+                  <span id="accountPhone">No phone saved</span>
+                  <label class="profile-phone">
+                    <span>Notification phone</span>
+                    <input id="profilePhoneInput" type="tel" autocomplete="tel" placeholder="+1 555 123 4567">
+                  </label>
+                </div>
+              </section>
+
+              <section class="side-card side-panel" data-side-panel-content="alerts">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">Alert Feed</p>
+                    <h2>Recent hits</h2>
+                  </div>
+                  <span class="mini-pill" id="lastScanPill">Never</span>
+                </div>
+                <div class="alert-feed" id="alertFeed"></div>
+              </section>
+
+              <section class="side-card side-panel" id="settingsPanel" data-side-panel-content="style" aria-label="Style settings">
+                <div class="section-heading">
+                  <div>
+                    <p class="eyebrow">Style</p>
+                    <h2>Make it yours</h2>
+                  </div>
+                  <span class="mini-pill">Quirk dial</span>
+                </div>
+
+                <div class="setting-group">
+                  <span class="setting-label">Theme</span>
+                  <div class="segmented" role="group" aria-label="Theme">
+                    <button class="segment" data-theme-option="system" type="button">System</button>
+                    <button class="segment" data-theme-option="light" type="button">Light</button>
+                    <button class="segment" data-theme-option="dark" type="button">Dark</button>
+                  </div>
+                </div>
+
+                <div class="setting-group">
+                  <span class="setting-label">Accent</span>
+                  <div class="segmented" role="group" aria-label="Accent">
+                    <button class="swatch electric" data-accent-option="electric" type="button" aria-label="Electric accent"></button>
+                    <button class="swatch pulse" data-accent-option="pulse" type="button" aria-label="Pulse accent"></button>
+                    <button class="swatch signal" data-accent-option="signal" type="button" aria-label="Signal accent"></button>
+                  </div>
+                </div>
+
+                <label class="switch-row setting-switch">
+                  <input id="motionToggle" type="checkbox">
+                  <span class="switch-track"></span>
+                  <span>Pointer FX</span>
+                </label>
+
+                <label class="switch-row setting-switch">
+                  <input id="denseToggle" type="checkbox">
+                  <span class="switch-track"></span>
+                  <span>Compact</span>
+                </label>
+              </section>
+            </div>
+          </section>
+        </aside>
       </main>
     </div>
   </body>
