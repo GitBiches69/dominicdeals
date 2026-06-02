@@ -43,7 +43,8 @@ const DEFAULT_USER_PREFS = {
   notifySms: false,
   pennyThreshold: 5,
   pennyPercent: 80,
-  alertWhenSoldOut: true
+  alertWhenSoldOut: true,
+  uiSettings: null
 };
 
 ensureDataFiles();
@@ -638,17 +639,25 @@ async function handleUpdateMe(req, res) {
     return;
   }
 
-  user.name = String(body.name ?? user.name).trim().slice(0, 80) || user.name;
-  user.phone = normalizePhone(body.phone ?? user.phone);
-  user.notifyEmail = Boolean(body.notifyEmail);
-  user.notifySms = Boolean(body.notifySms);
-  user.alertWhenSoldOut = Boolean(body.alertWhenSoldOut);
-  user.pennyThreshold = clampNumber(body.pennyThreshold, user.pennyThreshold, 0.01, 100);
-  user.pennyPercent = clampNumber(body.pennyPercent, user.pennyPercent, 1, 99);
+  if ("name" in body) user.name = String(body.name ?? user.name).trim().slice(0, 80) || user.name;
+  if ("phone" in body) user.phone = normalizePhone(body.phone ?? user.phone);
+  if ("notifyEmail" in body) user.notifyEmail = Boolean(body.notifyEmail);
+  if ("notifySms" in body) user.notifySms = Boolean(body.notifySms);
+  if ("alertWhenSoldOut" in body) user.alertWhenSoldOut = Boolean(body.alertWhenSoldOut);
+  if ("pennyThreshold" in body) user.pennyThreshold = clampNumber(body.pennyThreshold, user.pennyThreshold, 0.01, 100);
+  if ("pennyPercent" in body) user.pennyPercent = clampNumber(body.pennyPercent, user.pennyPercent, 1, 99);
+  if ("uiSettings" in body) user.uiSettings = sanitizeUiSettings(body.uiSettings);
   user.updatedAt = new Date().toISOString();
   saveUsersDb(db);
 
   sendJson(res, 200, { user: safeUser(user) });
+}
+
+function sanitizeUiSettings(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const text = JSON.stringify(value);
+  if (text.length > 12000) return null;
+  return JSON.parse(text);
 }
 
 function getAlertsDb() {

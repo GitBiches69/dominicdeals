@@ -1,10 +1,38 @@
 const SETTINGS_KEY = "dominic-deals-settings";
 const SAVED_KEY = "dominic-deals-saved";
+const CONSENT_KEY = "dominic-deals-preference-consent";
+const MODULES = [
+  { key: "hero", label: "Hero" },
+  { key: "controls", label: "Search" },
+  { key: "stats", label: "Stats" },
+  { key: "views", label: "Tabs" }
+];
+const VIEW_TABS = [
+  { key: "deals", label: "Deals" },
+  { key: "saved", label: "Saved" },
+  { key: "alerts", label: "Alerts" }
+];
+const SIDE_PANELS = [
+  { key: "tracker", label: "Tracker" },
+  { key: "account", label: "Account" },
+  { key: "alerts", label: "Alerts" },
+  { key: "style", label: "Style" }
+];
 const DEFAULT_SETTINGS = {
   theme: "system",
   accent: "electric",
   motion: true,
-  density: "comfortable"
+  density: "comfortable",
+  customColors: {
+    accent: "#f7d117",
+    accent2: "#12b7ff",
+    good: "#00875a",
+    danger: "#d92d20",
+    wash: "#f7f2df"
+  },
+  moduleOrder: MODULES.map((item) => item.key),
+  viewOrder: VIEW_TABS.map((item) => item.key),
+  sideOrder: SIDE_PANELS.map((item) => item.key)
 };
 
 const state = {
@@ -21,6 +49,10 @@ const state = {
 
 const elements = {
   sourcePill: document.querySelector("#sourcePill"),
+  mainColumn: document.querySelector(".main-column"),
+  tabsNav: document.querySelector(".tabs"),
+  sideMenu: document.querySelector(".side-menu"),
+  sideStack: document.querySelector(".side-panel-stack"),
   themeToggle: document.querySelector("#themeToggle"),
   settingsButton: document.querySelector("#settingsButton"),
   settingsPanel: document.querySelector("#settingsPanel"),
@@ -46,9 +78,18 @@ const elements = {
   messageBox: document.querySelector("#messageBox"),
   dealList: document.querySelector("#dealList"),
   backgroundCanvas: document.querySelector("#dealBackground"),
+  dealToy: document.querySelector("#dealToy"),
+  toyChips: document.querySelectorAll("[data-toy-chip]"),
   tabs: document.querySelectorAll(".tab"),
   themeOptions: document.querySelectorAll("[data-theme-option]"),
   accentOptions: document.querySelectorAll("[data-accent-option]"),
+  colorInputs: document.querySelectorAll("[data-color-key]"),
+  moduleOrderList: document.querySelector("#moduleOrderList"),
+  viewOrderList: document.querySelector("#viewOrderList"),
+  sideOrderList: document.querySelector("#sideOrderList"),
+  cookiePrompt: document.querySelector("#cookiePrompt"),
+  acceptCookiesButton: document.querySelector("#acceptCookiesButton"),
+  declineCookiesButton: document.querySelector("#declineCookiesButton"),
   authForm: document.querySelector("#authForm"),
   authName: document.querySelector("#authName"),
   authEmail: document.querySelector("#authEmail"),
@@ -77,14 +118,20 @@ const elements = {
 };
 
 let backgroundRenderer;
+let dealToyController;
+let accountSyncTimer = 0;
 const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const desktopQuery = window.matchMedia("(min-width: 980px)");
 
 document.addEventListener("DOMContentLoaded", () => {
   applySettings();
+  applyLayoutSettings();
+  renderCustomizationControls();
   updateDeviceMode();
   wireEvents();
+  showCookiePromptIfNeeded();
   backgroundRenderer = createDealBackground(elements.backgroundCanvas);
+  dealToyController = createDealToy(elements.dealToy, elements.toyChips);
   updateMotion();
   refreshIcons();
   loadStatus();
@@ -109,6 +156,8 @@ function wireEvents() {
   elements.testNotificationButton.addEventListener("click", testNotification);
   elements.pennyScanButton.addEventListener("click", runPennyScan);
   elements.heroPennyScanButton.addEventListener("click", runPennyScan);
+  elements.acceptCookiesButton.addEventListener("click", acceptPreferenceStorage);
+  elements.declineCookiesButton.addEventListener("click", declinePreferenceStorage);
 
   elements.sidePanelButtons.forEach((button) => {
     button.addEventListener("click", () => activateSidePanel(button.dataset.sidePanel));
@@ -125,6 +174,19 @@ function wireEvents() {
     button.addEventListener("click", () => {
       state.settings.accent = button.dataset.accentOption;
       persistSettings();
+    });
+  });
+
+  elements.colorInputs.forEach((input) => {
+    input.addEventListener("input", () => commitCustomColor(input, false));
+    input.addEventListener("change", () => commitCustomColor(input, true));
+  });
+
+  [elements.moduleOrderList, elements.viewOrderList, elements.sideOrderList].forEach((list) => {
+    list.addEventListener("click", (event) => {
+      const button = event.target.closest("[data-order-kind][data-order-key][data-order-move]");
+      if (!button) return;
+      moveOrderItem(button.dataset.orderKind, button.dataset.orderKey, Number(button.dataset.orderMove));
     });
   });
 
@@ -182,6 +244,28 @@ function updateDeviceMode() {
   document.documentElement.dataset.device = desktopQuery.matches ? "desktop" : "mobile";
 }
 
+function canStorePreferences() {
+  return localStorage.getItem(CONSENT_KEY) === "accepted";
+}
+
+function showCookiePromptIfNeeded() {
+  if (!localStorage.getItem(CONSENT_KEY)) {
+    elements.cookiePrompt.classList.remove("hidden");
+  }
+}
+
+function acceptPreferenceStorage() {
+  localStorage.setItem(CONSENT_KEY, "accepted");
+  elements.cookiePrompt.classList.add("hidden");
+  persistSettings({ syncAccount: true });
+  saveSaved();
+}
+
+function declinePreferenceStorage() {
+  localStorage.setItem(CONSENT_KEY, "declined");
+  elements.cookiePrompt.classList.add("hidden");
+}
+
 function toggleSettings() {
   activateSidePanel("style");
   elements.settingsButton.setAttribute("aria-expanded", "true");
@@ -205,18 +289,47 @@ function cycleTheme() {
   persistSettings();
 }
 
-function persistSettings() {
-  localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
-  applySettings();
+function persistSettings(options = {}) {
+  const {
+    syncAccount = true,
+    layout = true,
+    controls = true,
+    colorInputs = true,
+    icons = true
+  } = options;
+  state.settings = normalizeSettings(state.settings);
+  if (canStorePreferences()) {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+  }
+  applySettings({ colorInputs, icons });
+  if (layout) applyLayoutSettings();
+  if (controls) renderCustomizationControls();
+  if (syncAccount) scheduleAccountSettingsSync();
 }
 
-function applySettings() {
+function applySettings(options = {}) {
+  const { colorInputs = true, icons = true } = options;
+  state.settings = normalizeSettings(state.settings);
   const resolvedTheme = resolveTheme(state.settings.theme);
   const root = document.documentElement;
   root.dataset.theme = resolvedTheme;
   root.dataset.accent = state.settings.accent;
   root.dataset.density = state.settings.density;
   root.dataset.motion = state.settings.motion ? "on" : "off";
+
+  root.style.removeProperty("--accent");
+  root.style.removeProperty("--accent-2");
+  root.style.removeProperty("--good");
+  root.style.removeProperty("--danger");
+  root.style.removeProperty("--wash");
+
+  if (state.settings.accent === "custom") {
+    root.style.setProperty("--accent", state.settings.customColors.accent);
+    root.style.setProperty("--accent-2", state.settings.customColors.accent2);
+    root.style.setProperty("--good", state.settings.customColors.good);
+    root.style.setProperty("--danger", state.settings.customColors.danger);
+    root.style.setProperty("--wash", state.settings.customColors.wash);
+  }
 
   const themeColor = resolvedTheme === "dark" ? "#080b12" : "#f7d117";
   document.querySelector("meta[name='theme-color']")?.setAttribute("content", themeColor);
@@ -227,11 +340,16 @@ function applySettings() {
   elements.accentOptions.forEach((button) => {
     button.classList.toggle("active", button.dataset.accentOption === state.settings.accent);
   });
+  if (colorInputs) {
+    elements.colorInputs.forEach((input) => {
+      input.value = state.settings.customColors[input.dataset.colorKey] || input.value;
+    });
+  }
   elements.motionToggle.checked = state.settings.motion;
   elements.denseToggle.checked = state.settings.density === "compact";
   elements.themeToggle.innerHTML = `<i data-lucide="${resolvedTheme === "dark" ? "sun" : "moon"}"></i>`;
   updateMotion();
-  refreshIcons();
+  if (icons) refreshIcons();
 }
 
 function resolveTheme(theme) {
@@ -239,13 +357,530 @@ function resolveTheme(theme) {
   return systemThemeQuery.matches ? "dark" : "light";
 }
 
+function normalizeSettings(settings) {
+  const next = { ...DEFAULT_SETTINGS, ...(settings || {}) };
+  next.customColors = { ...DEFAULT_SETTINGS.customColors, ...(settings?.customColors || {}) };
+  next.moduleOrder = normalizeOrder(next.moduleOrder, MODULES);
+  next.viewOrder = normalizeOrder(next.viewOrder, VIEW_TABS);
+  next.sideOrder = normalizeOrder(next.sideOrder, SIDE_PANELS);
+  if (!["system", "light", "dark"].includes(next.theme)) next.theme = DEFAULT_SETTINGS.theme;
+  if (!["electric", "pulse", "signal", "midnight", "citrus", "mono", "custom"].includes(next.accent)) {
+    next.accent = DEFAULT_SETTINGS.accent;
+  }
+  next.motion = Boolean(next.motion);
+  next.density = next.density === "compact" ? "compact" : "comfortable";
+  return next;
+}
+
+function normalizeOrder(order, reference) {
+  const valid = reference.map((item) => item.key);
+  const incoming = Array.isArray(order) ? order.filter((key) => valid.includes(key)) : [];
+  return [...incoming, ...valid.filter((key) => !incoming.includes(key))];
+}
+
+function applyLayoutSettings() {
+  const messageAnchor = elements.messageBox;
+  state.settings.moduleOrder.forEach((key) => {
+    const module = document.querySelector(`[data-module="${key}"]`);
+    if (module) elements.mainColumn.insertBefore(module, messageAnchor);
+  });
+
+  state.settings.viewOrder.forEach((key) => {
+    const tab = elements.tabsNav.querySelector(`[data-view="${key}"]`);
+    if (tab) elements.tabsNav.appendChild(tab);
+  });
+
+  state.settings.sideOrder.forEach((key) => {
+    const button = elements.sideMenu.querySelector(`[data-side-panel="${key}"]`);
+    const panel = elements.sideStack.querySelector(`[data-side-panel-content="${key}"]`);
+    if (button) elements.sideMenu.appendChild(button);
+    if (panel) elements.sideStack.appendChild(panel);
+  });
+}
+
+function renderCustomizationControls() {
+  renderOrderList(elements.moduleOrderList, "moduleOrder", state.settings.moduleOrder, MODULES);
+  renderOrderList(elements.viewOrderList, "viewOrder", state.settings.viewOrder, VIEW_TABS);
+  renderOrderList(elements.sideOrderList, "sideOrder", state.settings.sideOrder, SIDE_PANELS);
+}
+
+function renderOrderList(container, kind, order, reference) {
+  const labels = Object.fromEntries(reference.map((item) => [item.key, item.label]));
+  container.innerHTML = order.map((key, index) => `
+    <div class="order-row">
+      <span>${escapeHtml(labels[key] || key)}</span>
+      <div>
+        <button class="mini-icon" data-order-kind="${kind}" data-order-key="${key}" data-order-move="-1" type="button" aria-label="Move ${escapeAttribute(labels[key] || key)} up" ${index === 0 ? "disabled" : ""}>
+          <i data-lucide="chevron-up"></i>
+        </button>
+        <button class="mini-icon" data-order-kind="${kind}" data-order-key="${key}" data-order-move="1" type="button" aria-label="Move ${escapeAttribute(labels[key] || key)} down" ${index === order.length - 1 ? "disabled" : ""}>
+          <i data-lucide="chevron-down"></i>
+        </button>
+      </div>
+    </div>
+  `).join("");
+  refreshIcons();
+}
+
+function moveOrderItem(kind, key, direction) {
+  const order = [...state.settings[kind]];
+  const index = order.indexOf(key);
+  const nextIndex = index + direction;
+  if (index === -1 || nextIndex < 0 || nextIndex >= order.length) return;
+  [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
+  state.settings[kind] = order;
+  persistSettings();
+}
+
+function commitCustomColor(input, syncAccount) {
+  if (!input?.dataset.colorKey) return;
+  state.settings.accent = "custom";
+  state.settings.customColors[input.dataset.colorKey] = input.value;
+  state.settings = normalizeSettings(state.settings);
+  if (canStorePreferences()) {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(state.settings));
+  }
+  applyColorPreview();
+  elements.accentOptions.forEach((button) => button.classList.toggle("active", false));
+  if (syncAccount) scheduleAccountSettingsSync();
+}
+
+function applyColorPreview() {
+  const root = document.documentElement;
+  root.dataset.accent = state.settings.accent;
+  root.style.removeProperty("--accent");
+  root.style.removeProperty("--accent-2");
+  root.style.removeProperty("--good");
+  root.style.removeProperty("--danger");
+  root.style.removeProperty("--wash");
+  root.style.setProperty("--accent", state.settings.customColors.accent);
+  root.style.setProperty("--accent-2", state.settings.customColors.accent2);
+  root.style.setProperty("--good", state.settings.customColors.good);
+  root.style.setProperty("--danger", state.settings.customColors.danger);
+  root.style.setProperty("--wash", state.settings.customColors.wash);
+}
+
 function updateMotion() {
+  if (dealToyController) {
+    dealToyController.setEnabled(state.settings.motion);
+  }
   if (!backgroundRenderer) return;
   if (state.settings.motion) {
     backgroundRenderer.start();
   } else {
     backgroundRenderer.stop();
   }
+}
+
+function createDealToy(toy, chips) {
+  if (!toy || !chips?.length) {
+    return { setEnabled() {} };
+  }
+
+  const popLabels = ["$0.01", "$4.97", "90% off", "carted", "sku ping"];
+  const margin = 8;
+  const physics = {
+    bounce: 0.78,
+    friction: 0.986,
+    angularFriction: 0.982,
+    maxSpeed: 18,
+    stopSpeed: 0.06
+  };
+  const chipData = [...chips].map((chip) => ({
+    chip,
+    xPct: Number(chip.dataset.x || 0),
+    yPct: Number(chip.dataset.y || 0),
+    x: 0,
+    y: 0,
+    w: 0,
+    h: 0,
+    vx: 0,
+    vy: 0,
+    spin: 0,
+    angularVelocity: 0,
+    rotate: Number(chip.dataset.rotate || 0),
+    offsetX: 0,
+    offsetY: 0,
+    lastMoveAt: 0
+  }));
+  let enabled = true;
+  let dragging = null;
+  let bounds = { width: 0, height: 0 };
+  let layoutReady = false;
+  let animationFrame = 0;
+
+  syncBounds();
+  chipData.forEach((data) => data.chip.addEventListener("pointerdown", (event) => startChipDrag(event, data)));
+
+  toy.addEventListener("pointermove", handlePointerMove);
+  toy.addEventListener("pointerleave", () => {
+    if (!dragging) resetToyTilt();
+  });
+  toy.addEventListener("pointerdown", (event) => {
+    if (!enabled || event.target.closest("[data-toy-chip]")) return;
+    const point = getToyPoint(event);
+    kickNearestChip(point);
+    spawnToyPop(point.x, point.y);
+  });
+  document.addEventListener("pointermove", handleDragMove);
+  document.addEventListener("pointerup", finishChipDrag);
+  window.addEventListener("resize", () => {
+    syncBounds();
+    renderAllChips();
+  });
+
+  function setEnabled(value) {
+    enabled = Boolean(value);
+    toy.classList.toggle("toy-paused", !enabled);
+    if (!enabled) {
+      stopPhysics();
+      if (dragging) {
+        dragging.chip.classList.remove("dragging");
+        dragging = null;
+      }
+      resetToyTilt();
+      chipData.forEach((data) => {
+        data.vx = 0;
+        data.vy = 0;
+        data.angularVelocity = 0;
+      });
+    } else {
+      syncBounds();
+      renderAllChips();
+    }
+  }
+
+  function handlePointerMove(event) {
+    if (!enabled) return;
+    const point = getToyPoint(event);
+    tiltToy(point);
+    if (!dragging) nudgeChipsFromPointer(point);
+  }
+
+  function startChipDrag(event, data) {
+    if (!enabled) return;
+    event.preventDefault();
+    event.stopPropagation();
+    syncBounds();
+    const point = getToyPoint(event);
+    data.offsetX = point.x - data.x;
+    data.offsetY = point.y - data.y;
+    data.vx = 0;
+    data.vy = 0;
+    data.lastMoveAt = performance.now();
+    dragging = data;
+    data.chip.classList.add("dragging");
+    data.chip.setPointerCapture?.(event.pointerId);
+  }
+
+  function handleDragMove(event) {
+    if (!enabled || !dragging) return;
+    const now = performance.now();
+    const point = getToyPoint(event);
+    const nextX = clamp(point.x - dragging.offsetX, margin, maxX(dragging));
+    const nextY = clamp(point.y - dragging.offsetY, margin, maxY(dragging));
+    const elapsed = Math.max(12, now - dragging.lastMoveAt);
+    const speedScale = 16.67 / elapsed;
+    dragging.vx = clamp((nextX - dragging.x) * speedScale, -physics.maxSpeed, physics.maxSpeed);
+    dragging.vy = clamp((nextY - dragging.y) * speedScale, -physics.maxSpeed, physics.maxSpeed);
+    dragging.angularVelocity = clamp(dragging.vx * 0.08, -6, 6);
+    dragging.x = nextX;
+    dragging.y = nextY;
+    dragging.lastMoveAt = now;
+    applyChipPosition(dragging);
+    resolveCollisions();
+    renderAllChips();
+    startPhysics();
+  }
+
+  function finishChipDrag(event) {
+    if (!dragging) return;
+    const finished = dragging;
+    finished.chip.classList.remove("dragging");
+    dragging = null;
+    const point = getToyPoint(event);
+    limitVelocity(finished);
+    spawnToyPop(point.x, point.y);
+    startPhysics();
+  }
+
+  function nudgeChipsFromPointer(point) {
+    let moved = false;
+    chipData.forEach((data) => {
+      const centerX = data.x + data.w / 2;
+      const centerY = data.y + data.h / 2;
+      const dx = centerX - point.x;
+      const dy = centerY - point.y;
+      const distance = Math.max(1, Math.hypot(dx, dy));
+      const force = Math.max(0, 1 - distance / 120);
+      if (!force) return;
+      data.vx += (dx / distance) * force * 0.35;
+      data.vy += (dy / distance) * force * 0.28;
+      data.angularVelocity += (dx >= 0 ? 1 : -1) * force * 0.18;
+      limitVelocity(data);
+      moved = true;
+    });
+    if (moved) startPhysics();
+  }
+
+  function kickNearestChip(point) {
+    const nearest = chipData
+      .map((data) => {
+        const dx = data.x + data.w / 2 - point.x;
+        const dy = data.y + data.h / 2 - point.y;
+        return { data, distance: Math.hypot(dx, dy), dx, dy };
+      })
+      .sort((a, b) => a.distance - b.distance)[0];
+
+    if (!nearest) return;
+    const distance = Math.max(1, nearest.distance);
+    nearest.data.vx += (nearest.dx / distance) * 7;
+    nearest.data.vy += (nearest.dy / distance) * 5.5;
+    nearest.data.angularVelocity += (nearest.dx >= 0 ? 1 : -1) * 2.4;
+    limitVelocity(nearest.data);
+    startPhysics();
+  }
+
+  function tiltToy(point) {
+    const xTilt = ((point.x / bounds.width) - 0.5) * 5;
+    const yTilt = ((point.y / bounds.height) - 0.5) * -5;
+    toy.style.setProperty("--tilt-x", `${xTilt.toFixed(2)}deg`);
+    toy.style.setProperty("--tilt-y", `${yTilt.toFixed(2)}deg`);
+  }
+
+  function resetToyTilt() {
+    toy.style.setProperty("--tilt-x", "0deg");
+    toy.style.setProperty("--tilt-y", "0deg");
+  }
+
+  function startPhysics() {
+    if (!enabled || animationFrame) return;
+    animationFrame = requestAnimationFrame(stepPhysics);
+  }
+
+  function stopPhysics() {
+    if (!animationFrame) return;
+    cancelAnimationFrame(animationFrame);
+    animationFrame = 0;
+  }
+
+  function stepPhysics() {
+    animationFrame = 0;
+    let moving = Boolean(dragging);
+
+    chipData.forEach((data) => {
+      if (data === dragging) return;
+      data.x += data.vx;
+      data.y += data.vy;
+      data.spin += data.angularVelocity;
+      data.vx *= physics.friction;
+      data.vy *= physics.friction;
+      data.angularVelocity *= physics.angularFriction;
+      bounceOffWalls(data);
+      if (Math.hypot(data.vx, data.vy) > physics.stopSpeed || Math.abs(data.angularVelocity) > physics.stopSpeed) {
+        moving = true;
+      } else {
+        data.vx = 0;
+        data.vy = 0;
+        data.angularVelocity = 0;
+      }
+    });
+
+    resolveCollisions();
+    renderAllChips();
+    if (moving && enabled) startPhysics();
+  }
+
+  function bounceOffWalls(data) {
+    const right = maxX(data);
+    const bottom = maxY(data);
+
+    if (data.x < margin) {
+      data.x = margin;
+      data.vx = Math.abs(data.vx) * physics.bounce;
+      data.angularVelocity += data.vx * 0.05;
+    } else if (data.x > right) {
+      data.x = right;
+      data.vx = -Math.abs(data.vx) * physics.bounce;
+      data.angularVelocity += data.vx * 0.05;
+    }
+
+    if (data.y < margin) {
+      data.y = margin;
+      data.vy = Math.abs(data.vy) * physics.bounce;
+      data.angularVelocity -= data.vy * 0.04;
+    } else if (data.y > bottom) {
+      data.y = bottom;
+      data.vy = -Math.abs(data.vy) * physics.bounce;
+      data.angularVelocity -= data.vy * 0.04;
+    }
+  }
+
+  function resolveCollisions() {
+    for (let pass = 0; pass < 2; pass += 1) {
+      for (let i = 0; i < chipData.length; i += 1) {
+        for (let j = i + 1; j < chipData.length; j += 1) {
+          collideChips(chipData[i], chipData[j]);
+        }
+      }
+    }
+  }
+
+  function collideChips(a, b) {
+    const ax = a.x + a.w / 2;
+    const ay = a.y + a.h / 2;
+    const bx = b.x + b.w / 2;
+    const by = b.y + b.h / 2;
+    let dx = bx - ax;
+    let dy = by - ay;
+    let distance = Math.hypot(dx, dy);
+
+    if (!distance) {
+      distance = 1;
+      dx = 1;
+      dy = 0;
+    }
+
+    const radiusA = Math.max(a.w, a.h) * 0.54;
+    const radiusB = Math.max(b.w, b.h) * 0.54;
+    const minDistance = radiusA + radiusB;
+    if (distance >= minDistance) return;
+
+    const nx = dx / distance;
+    const ny = dy / distance;
+    const overlap = minDistance - distance;
+    const aPinned = a === dragging;
+    const bPinned = b === dragging;
+
+    if (aPinned && !bPinned) {
+      b.x += nx * overlap;
+      b.y += ny * overlap;
+    } else if (bPinned && !aPinned) {
+      a.x -= nx * overlap;
+      a.y -= ny * overlap;
+    } else {
+      a.x -= nx * overlap * 0.5;
+      a.y -= ny * overlap * 0.5;
+      b.x += nx * overlap * 0.5;
+      b.y += ny * overlap * 0.5;
+    }
+
+    keepInBox(a);
+    keepInBox(b);
+
+    if (aPinned || bPinned) {
+      const shoved = aPinned ? b : a;
+      const direction = aPinned ? 1 : -1;
+      const speed = Math.max(0.9, Math.hypot(a.vx - b.vx, a.vy - b.vy) * 0.55);
+      shoved.vx += nx * speed * direction;
+      shoved.vy += ny * speed * direction;
+      shoved.angularVelocity += direction * speed * 0.12;
+      limitVelocity(shoved);
+      return;
+    }
+
+    const rvx = b.vx - a.vx;
+    const rvy = b.vy - a.vy;
+    const velocityAlongNormal = rvx * nx + rvy * ny;
+    if (velocityAlongNormal > 0) return;
+
+    const impulse = (-(1 + physics.bounce) * velocityAlongNormal) / 2;
+    a.vx -= impulse * nx;
+    a.vy -= impulse * ny;
+    b.vx += impulse * nx;
+    b.vy += impulse * ny;
+    a.angularVelocity -= impulse * 0.05;
+    b.angularVelocity += impulse * 0.05;
+    limitVelocity(a);
+    limitVelocity(b);
+  }
+
+  function syncBounds() {
+    const rect = toy.getBoundingClientRect();
+    bounds = {
+      width: Math.max(1, rect.width),
+      height: Math.max(1, rect.height)
+    };
+
+    chipData.forEach((data) => {
+      data.w = data.chip.offsetWidth || 76;
+      data.h = data.chip.offsetHeight || 32;
+      if (!layoutReady) {
+        data.x = (data.xPct / 100) * bounds.width;
+        data.y = (data.yPct / 100) * bounds.height;
+      } else {
+        data.x = (data.xPct / 100) * bounds.width;
+        data.y = (data.yPct / 100) * bounds.height;
+      }
+      keepInBox(data);
+      applyChipPosition(data);
+    });
+    layoutReady = true;
+    resolveCollisions();
+    renderAllChips();
+  }
+
+  function renderAllChips() {
+    chipData.forEach(applyChipPosition);
+  }
+
+  function applyChipPosition(data) {
+    keepInBox(data);
+    if (Math.abs(data.spin) > 720) data.spin %= 360;
+    data.xPct = (data.x / bounds.width) * 100;
+    data.yPct = (data.y / bounds.height) * 100;
+    data.chip.style.setProperty("--x", data.xPct.toFixed(2));
+    data.chip.style.setProperty("--y", data.yPct.toFixed(2));
+    data.chip.style.setProperty("--spin", `${data.spin.toFixed(2)}deg`);
+    data.chip.style.setProperty("--tx", "0px");
+    data.chip.style.setProperty("--ty", "0px");
+    data.chip.style.setProperty("--rotate", `${data.rotate}deg`);
+  }
+
+  function keepInBox(data) {
+    data.x = clamp(data.x, margin, maxX(data));
+    data.y = clamp(data.y, margin, maxY(data));
+  }
+
+  function limitVelocity(data) {
+    data.vx = clamp(data.vx, -physics.maxSpeed, physics.maxSpeed);
+    data.vy = clamp(data.vy, -physics.maxSpeed, physics.maxSpeed);
+    data.angularVelocity = clamp(data.angularVelocity, -8, 8);
+  }
+
+  function maxX(data) {
+    return Math.max(margin, bounds.width - data.w - margin);
+  }
+
+  function maxY(data) {
+    return Math.max(margin, bounds.height - data.h - margin);
+  }
+
+  function spawnToyPop(x, y) {
+    if (!enabled) return;
+    const pop = document.createElement("span");
+    pop.className = "toy-pop";
+    pop.textContent = popLabels[Math.floor(Math.random() * popLabels.length)];
+    pop.style.setProperty("--pop-x", `${clamp(x, 14, toy.clientWidth - 14)}px`);
+    pop.style.setProperty("--pop-y", `${clamp(y, 14, toy.clientHeight - 14)}px`);
+    toy.appendChild(pop);
+    pop.addEventListener("animationend", () => pop.remove(), { once: true });
+  }
+
+  function getToyPoint(event) {
+    const rect = toy.getBoundingClientRect();
+    return {
+      rect,
+      x: clamp(event.clientX - rect.left, 0, rect.width),
+      y: clamp(event.clientY - rect.top, 0, rect.height)
+    };
+  }
+
+  function clamp(value, min, max) {
+    return Math.min(max, Math.max(min, value));
+  }
+
+  return { setEnabled };
 }
 
 async function api(path, options = {}) {
@@ -278,6 +913,10 @@ async function loadAccount() {
   try {
     const data = await api("/api/me");
     state.user = data.user;
+    if (state.user?.uiSettings && canStorePreferences()) {
+      state.settings = normalizeSettings(state.user.uiSettings);
+      persistSettings({ syncAccount: false });
+    }
   } catch (error) {
     state.user = null;
   }
@@ -298,6 +937,7 @@ async function registerAccount() {
     state.user = data.user;
     elements.authPassword.value = "";
     showMessage("Account created. Penny Watch can now save notification settings.");
+    scheduleAccountSettingsSync();
     activateSidePanel("tracker");
     renderAccount();
   } catch (error) {
@@ -315,6 +955,12 @@ async function loginAccount() {
       })
     });
     state.user = data.user;
+    if (state.user?.uiSettings && canStorePreferences()) {
+      state.settings = normalizeSettings(state.user.uiSettings);
+      persistSettings({ syncAccount: false });
+    } else {
+      scheduleAccountSettingsSync();
+    }
     elements.authPassword.value = "";
     showMessage("Signed in.");
     activateSidePanel("tracker");
@@ -364,6 +1010,25 @@ function renderProviderStatus() {
   if (state.providerStatus.email) providers.push("Email");
   if (state.providerStatus.sms) providers.push("SMS");
   elements.notifyStatus.textContent = providers.length ? providers.join(" + ") : "Local";
+}
+
+function scheduleAccountSettingsSync() {
+  if (!state.user || !canStorePreferences()) return;
+  clearTimeout(accountSyncTimer);
+  accountSyncTimer = setTimeout(syncSettingsToAccount, 650);
+}
+
+async function syncSettingsToAccount() {
+  if (!state.user || !canStorePreferences()) return;
+  try {
+    const data = await api("/api/me", {
+      method: "PUT",
+      body: JSON.stringify({ uiSettings: normalizeSettings(state.settings) })
+    });
+    state.user = data.user;
+  } catch (error) {
+    // Preference sync should never interrupt deal browsing.
+  }
 }
 
 async function saveWatchPrefs() {
@@ -671,8 +1336,11 @@ function saveSaved() {
 
 function loadSettings() {
   try {
+    if (localStorage.getItem(CONSENT_KEY) !== "accepted") {
+      return { ...DEFAULT_SETTINGS };
+    }
     const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-    return { ...DEFAULT_SETTINGS, ...saved };
+    return normalizeSettings(saved);
   } catch (error) {
     return { ...DEFAULT_SETTINGS };
   }
@@ -724,10 +1392,9 @@ function createDealBackground(canvas) {
   }
 
   const ctx = canvas.getContext("2d");
-  const pointer = { x: 0, y: 0, active: false };
   let width = 0;
   let height = 0;
-  let running = false;
+  let started = false;
 
   function resize() {
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
@@ -738,72 +1405,36 @@ function createDealBackground(canvas) {
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
-    if (!pointer.active) {
-      pointer.x = width * 0.68;
-      pointer.y = height * 0.24;
-    }
     draw();
   }
 
   function draw() {
     const styles = getComputedStyle(document.documentElement);
-    const ink = styles.getPropertyValue("--ink").trim();
     const line = styles.getPropertyValue("--bg-line").trim();
     const accent = styles.getPropertyValue("--accent").trim();
     const accentTwo = styles.getPropertyValue("--accent-2").trim();
     const danger = styles.getPropertyValue("--danger").trim();
-    const paper = styles.getPropertyValue("--paper").trim();
 
     ctx.clearRect(0, 0, width, height);
     drawFlatBackdrop(line, accent, accentTwo, danger);
-    if (running && pointer.active) drawPointerArtifacts(ink, paper, accent, accentTwo, danger);
   }
 
   function drawFlatBackdrop(line, accent, accentTwo, danger) {
     ctx.save();
-    ctx.globalAlpha = 0.34;
+    ctx.globalAlpha = 0.28;
     ctx.strokeStyle = line;
     ctx.lineWidth = 1;
-    const spacing = width > 900 ? 96 : 72;
+    const spacing = width > 900 ? 108 : 82;
     for (let x = -spacing; x < width + spacing; x += spacing) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
-      ctx.lineTo(x + height * 0.22, height);
+      ctx.lineTo(x + height * 0.16, height);
       ctx.stroke();
     }
 
-    drawStaticChip(width * 0.08, height * 0.18, "$0.99", accent, line, 0.18);
-    drawStaticChip(width * 0.74, height * 0.12, "penny watch", accentTwo, line, 0.16);
-    drawStaticChip(width * 0.18, height * 0.78, "drop", danger, line, 0.12);
-    ctx.restore();
-  }
-
-  function drawPointerArtifacts(ink, paper, accent, accentTwo, danger) {
-    ctx.save();
-    const x = pointer.x;
-    const y = pointer.y;
-
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, 170);
-    gradient.addColorStop(0, colorWithAlpha(accentTwo, 0.18));
-    gradient.addColorStop(1, colorWithAlpha(accentTwo, 0));
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(x, y, 170, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.globalAlpha = 0.72;
-    ctx.strokeStyle = accent;
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    ctx.arc(x, y, 28, 0, Math.PI * 2);
-    ctx.stroke();
-
-    ctx.globalAlpha = 0.92;
-    drawInteractiveTag(x + 22, y - 58, "$ deal found", ink, paper, accent, danger);
-
-    const dx = (x - width / 2) * 0.018;
-    const dy = (y - height / 2) * 0.018;
-    drawInteractiveTag(width * 0.78 + dx, height * 0.78 + dy, "watching", ink, paper, accentTwo, accent);
+    drawStaticChip(width * 0.08, height * 0.18, "$0.99", accent, line, 0.13);
+    drawStaticChip(width * 0.72, height * 0.12, "penny watch", accentTwo, line, 0.12);
+    drawStaticChip(width * 0.18, height * 0.78, "drop", danger, line, 0.1);
     ctx.restore();
   }
 
@@ -823,27 +1454,6 @@ function createDealBackground(canvas) {
     ctx.restore();
   }
 
-  function drawInteractiveTag(x, y, label, ink, paper, stroke, corner) {
-    ctx.save();
-    const w = Math.min(132, Math.max(96, label.length * 8 + 28));
-    const h = 34;
-    roundedRect(x, y, w, h, 11);
-    ctx.fillStyle = paper;
-    ctx.strokeStyle = stroke;
-    ctx.lineWidth = 1.2;
-    ctx.fill();
-    ctx.stroke();
-    ctx.fillStyle = corner;
-    ctx.beginPath();
-    ctx.arc(x + 16, y + h / 2, 4, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = ink;
-    ctx.font = "900 12px ui-sans-serif, system-ui, sans-serif";
-    ctx.textBaseline = "middle";
-    ctx.fillText(label, x + 28, y + h / 2 + 0.5);
-    ctx.restore();
-  }
-
   function roundedRect(x, y, w, h, r) {
     const radius = Math.min(r, w / 2, h / 2);
     ctx.beginPath();
@@ -859,49 +1469,20 @@ function createDealBackground(canvas) {
     ctx.closePath();
   }
 
-  function colorWithAlpha(color, alpha) {
-    if (color.startsWith("#") && color.length === 7) {
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-      return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-    }
-    return color;
-  }
-
-  function setPointer(event) {
-    const touch = event.touches?.[0];
-    pointer.x = touch ? touch.clientX : event.clientX;
-    pointer.y = touch ? touch.clientY : event.clientY;
-    pointer.active = true;
-    draw();
-  }
-
-  function clearPointer() {
-    pointer.active = false;
-    draw();
-  }
-
   function start() {
-    if (running) return;
-    running = true;
     canvas.hidden = false;
     resize();
+    if (started) return;
+    started = true;
     window.addEventListener("resize", resize);
-    window.addEventListener("pointermove", setPointer);
-    window.addEventListener("pointerleave", clearPointer);
-    window.addEventListener("touchmove", setPointer, { passive: true });
-    window.addEventListener("touchend", clearPointer);
   }
 
   function stop() {
-    running = false;
-    window.removeEventListener("resize", resize);
-    window.removeEventListener("pointermove", setPointer);
-    window.removeEventListener("pointerleave", clearPointer);
-    window.removeEventListener("touchmove", setPointer);
-    window.removeEventListener("touchend", clearPointer);
+    canvas.hidden = false;
     resize();
+    if (!started) return;
+    started = false;
+    window.removeEventListener("resize", resize);
   }
 
   return { start, stop };

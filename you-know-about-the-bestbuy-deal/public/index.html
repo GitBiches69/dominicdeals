@@ -7,9 +7,9 @@
     <title>Dominic Deals</title>
     <link rel="manifest" href="/manifest.json">
     <link rel="icon" href="/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="/styles.css?v=7">
+    <link rel="stylesheet" href="/styles.css?v=10">
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
-    <script src="/app.js?v=5" defer></script>
+    <script src="/app.js?v=10" defer></script>
   </head>
   <body>
     <canvas class="deal-background" id="dealBackground" aria-hidden="true"></canvas>
@@ -32,19 +32,36 @@
 
       <main class="desktop-grid">
         <section class="main-column">
-          <section class="hero-panel">
-            <div>
+          <section class="hero-panel" data-module="hero">
+            <div class="hero-copy">
               <p class="eyebrow">Version 3</p>
               <h2>Penny Watch is armed.</h2>
               <p id="heroSubcopy">Create an account, add your phone, and scan for absurd markdowns.</p>
             </div>
-            <button class="primary-button hero-scan" id="heroPennyScanButton" type="button">
-              <i data-lucide="radar"></i>
-              Scan Penny Deals
-            </button>
+            <div class="hero-action-stack">
+              <div class="deal-toy" id="dealToy" aria-label="Clearance desk">
+                <div class="toy-label">
+                  <span>Clearance desk</span>
+                  <strong>0.01</strong>
+                </div>
+                <div class="toy-meter" aria-hidden="true">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <button class="toy-chip toy-chip-primary" data-toy-chip data-x="10" data-y="47" data-rotate="-8" type="button" aria-label="Play price tag 99 cents">$0.99</button>
+                <button class="toy-chip toy-chip-danger" data-toy-chip data-x="46" data-y="19" data-rotate="8" type="button" aria-label="Play discount tag 87 percent off">87% off</button>
+                <button class="toy-chip toy-chip-good" data-toy-chip data-x="55" data-y="61" data-rotate="-5" type="button" aria-label="Play open box tag">open box</button>
+                <button class="toy-chip toy-chip-cool" data-toy-chip data-x="19" data-y="15" data-rotate="6" type="button" aria-label="Play sold out tag">sold out?</button>
+              </div>
+              <button class="primary-button hero-scan" id="heroPennyScanButton" type="button">
+                <i data-lucide="radar"></i>
+                Scan Penny Deals
+              </button>
+            </div>
           </section>
 
-          <section class="control-band" aria-label="Deal controls">
+          <section class="control-band" data-module="controls" aria-label="Deal controls">
             <div class="search-row">
               <label class="search-field">
                 <i data-lucide="search"></i>
@@ -98,7 +115,7 @@
             </button>
           </section>
 
-          <section class="stats-band" aria-label="Deal summary">
+          <section class="stats-band" data-module="stats" aria-label="Deal summary">
             <div>
               <span id="dealCount">0</span>
               <small>deals</small>
@@ -117,7 +134,7 @@
             </div>
           </section>
 
-          <nav class="tabs" aria-label="Deal views">
+          <nav class="tabs" data-module="views" aria-label="Deal views">
             <button class="tab active" data-view="deals" type="button">Deals</button>
             <button class="tab" data-view="saved" type="button">Saved</button>
             <button class="tab" data-view="alerts" type="button">Alerts</button>
@@ -267,18 +284,62 @@
                 </div>
 
                 <div class="setting-group">
-                  <span class="setting-label">Accent</span>
-                  <div class="segmented" role="group" aria-label="Accent">
+                  <span class="setting-label">Palette</span>
+                  <div class="palette-grid" role="group" aria-label="Palette">
                     <button class="swatch electric" data-accent-option="electric" type="button" aria-label="Electric accent"></button>
                     <button class="swatch pulse" data-accent-option="pulse" type="button" aria-label="Pulse accent"></button>
                     <button class="swatch signal" data-accent-option="signal" type="button" aria-label="Signal accent"></button>
+                    <button class="swatch midnight" data-accent-option="midnight" type="button" aria-label="Midnight accent"></button>
+                    <button class="swatch citrus" data-accent-option="citrus" type="button" aria-label="Citrus accent"></button>
+                    <button class="swatch mono" data-accent-option="mono" type="button" aria-label="Mono accent"></button>
                   </div>
+                </div>
+
+                <div class="setting-group">
+                  <span class="setting-label">Custom colors</span>
+                  <div class="color-grid">
+                    <label class="color-control">
+                      <span>Primary</span>
+                      <input type="color" data-color-key="accent" value="#f7d117">
+                    </label>
+                    <label class="color-control">
+                      <span>Secondary</span>
+                      <input type="color" data-color-key="accent2" value="#12b7ff">
+                    </label>
+                    <label class="color-control">
+                      <span>Success</span>
+                      <input type="color" data-color-key="good" value="#00875a">
+                    </label>
+                    <label class="color-control">
+                      <span>Danger</span>
+                      <input type="color" data-color-key="danger" value="#d92d20">
+                    </label>
+                    <label class="color-control">
+                      <span>Canvas</span>
+                      <input type="color" data-color-key="wash" value="#f7f2df">
+                    </label>
+                  </div>
+                </div>
+
+                <div class="setting-group">
+                  <span class="setting-label">Main layout</span>
+                  <div class="order-list" id="moduleOrderList"></div>
+                </div>
+
+                <div class="setting-group">
+                  <span class="setting-label">Deal tabs</span>
+                  <div class="order-list compact-order" id="viewOrderList"></div>
+                </div>
+
+                <div class="setting-group">
+                  <span class="setting-label">Command menu</span>
+                  <div class="order-list compact-order" id="sideOrderList"></div>
                 </div>
 
                 <label class="switch-row setting-switch">
                   <input id="motionToggle" type="checkbox">
                   <span class="switch-track"></span>
-                  <span>Pointer FX</span>
+                  <span>Deal toy</span>
                 </label>
 
                 <label class="switch-row setting-switch">
@@ -292,5 +353,16 @@
         </aside>
       </main>
     </div>
+
+    <section class="cookie-pop hidden" id="cookiePrompt" role="dialog" aria-live="polite" aria-label="Preference storage">
+      <div>
+        <strong>Save your dashboard?</strong>
+        <p>Dominic Deals can remember themes, colors, layout order, and your signed-in session on this browser.</p>
+      </div>
+      <div class="cookie-actions">
+        <button class="ghost-button" id="declineCookiesButton" type="button">Not now</button>
+        <button class="primary-button mini" id="acceptCookiesButton" type="button">Save it</button>
+      </div>
+    </section>
   </body>
 </html>
